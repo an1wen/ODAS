@@ -70,7 +70,7 @@ print()
 my_info = {}
 my_info["username"] = ACCOUNT_USERNAME
 
-REDO_WHITELIST = False
+REDO_WHITELIST = True
 USE_CHECKLIST = True
 
 REDO_PROCESSED = False
