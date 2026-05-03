@@ -335,7 +335,6 @@ def process_account(suspect_info):
     suspect_write(FNAME_PROCESSED,suspect_info, suspect_links,suspect_triggers)
     return suspect_name, suspect_triggers, suspect_following_ids
 
-# Where the fun begins!!!
 
 # Initialize whitelist
 if REDO_WHITELIST:
@@ -353,96 +352,19 @@ if True:
         processed_ids.add(user["user_id"])
     print('Processed IDs imported')
 
-# Initialize checklist
-# First, get followers of suspect zero
-try:
-    suspect_zero_id = int(cl.user_id_from_username(username = suspect_zero_name))
-    suspect_zero_set = {suspect_zero_id}
-except:
-    print("Could get the ID of suspect zero.")
 
-if USE_CHECKLIST == True:
-    checklist_from_file = read_checklist(FNAME_CHECKLIST)
-
-if not checklist_from_file and not suspect_zero_set:
-    print("Checklist ID is empty, exiting.")
-    exit()
-
-checklist_ids = checklist_from_file | suspect_zero_set
-
-# Queue
-queue_ids = deque(checklist_ids)
-
-# Fast lookup to avoid duplicates in queue
-queued_ids = set(checklist_ids)
-
-# Main loop
-num_processed = 0
-while queue_ids:
-    # Get next suspect
-    user_id = queue_ids.popleft()
-    queued_ids.remove(user_id)
-    print("=" * 60)
-    print(f"Checking user_id = {user_id}")
-    # Skip whitelist
+for user in data:
+    user_id = user['user_id']
     if user_id in whitelist_ids:
-        print("SKIP : whitelist")
         continue
-    # Skip already processed
-    if not REDO_PROCESSED and (user_id in processed_ids):
-        print("SKIP : already processed")
-        continue
-    # --------------------------------------------------
-    # PROCESS ACCOUNT
-    # --------------------------------------------------
-    user_info = {}
-    user_info["user_id"] = user_id
-    user_info["error"] = False
-    print("Fetching account info...")
-    user_name, user_triggers, new_ids = process_account(user_info)
-    error = user_info["error"]
-    if error:
-        print(f"User finished with error, status: {user_info["status"]}.")
-        print(f"QUEUE SIZE : {len(queue_ids)}")
-        num_processed += 1
-        if num_processed==num_processed_max:
-            break
-        sleep_time = random.randint(2, 8)/10
-        print(f'~~~sleeping for {sleep_time} seconds~~~')
-        time.sleep(sleep_time)
-        continue
-    else:
-        print("User finished processing without errors.")
-    new_ids = set(map(int, new_ids))
-    # --------------------------------------------------
-    # ADD NEW DISCOVERED ACCOUNTS
-    # --------------------------------------------------
-    n_added = 0
-    for new_id in new_ids:
-        # Normalize
-        new_id = int(new_id)
-        # All filters in ONE place
-        if new_id in whitelist_ids:
-            continue
-        if new_id in processed_ids:
-            continue
-        if new_id in queued_ids:
-            continue
-        # Add to queue
-        queue_ids.append(new_id)
-        queued_ids.add(new_id)
-        n_added += 1
-    print(f"DISCOVERED : {len(new_ids)}")
-    print(f"ADDED      : {n_added}")
-    print(f"QUEUE SIZE : {len(queue_ids)}")
-    num_processed += 1
-    if num_processed==num_processed_max:
-        break
-    sleep_time = random.randint(2, 8)/10
-    print(f'~~~sleeping for {sleep_time} seconds~~~')
-    time.sleep(sleep_time)
+    username = user['username']
+    triggers = user['matched_keywords']
+    triggers_bio = triggers[0]
+    triggers_url = triggers[1]
+    triggers_web = triggers[2]
+    for keyword in keywords_web:
+        if keyword in triggers_web or keyword in triggers_url:
+            cl.user_block(str(user_id))
+            print(f'Blocked {username}.')
 
 
-print(f'Finished checking {num_checks} suspects.')
-
-write_checklist(queue_ids)
